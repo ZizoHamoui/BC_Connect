@@ -1,0 +1,100 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuLink,
+} from "@/components/ui/navigation-menu"
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip"
+import { Wordmark } from "./wordmark"
+import { SearchBar } from "./search-bar"
+import { BcAvatar } from "./bc-avatar"
+import { cn } from "@/lib/utils"
+
+const navLinks = [
+  { label: "Demo", href: "/", desc: "Live product demo" },
+  { label: "Style Guide", href: "/styleguide", desc: "Design system reference" },
+  { label: "Directory", href: "/#directory", desc: "Browse all BC startups" },
+  { label: "Jobs", href: "/#jobs", desc: "Open roles across BC" },
+]
+
+export function Navbar() {
+  const pathname = usePathname()
+
+  return (
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+      <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-12 h-16 max-[960px]:px-6">
+        {/* Left side */}
+        <div className="flex items-center gap-10">
+          <Link href="/" aria-label="BC Connect Home" className="lattice-hover focus-ring rounded-sm">
+            <Wordmark size="nav" />
+          </Link>
+
+          <NavigationMenu viewport={false} className="max-[960px]:hidden">
+            <NavigationMenuList className="gap-0.5">
+              {navLinks.map((link) => {
+                const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href.replace(/#.*/, "")) && link.href !== "/"
+                return (
+                  <NavigationMenuItem key={link.href}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            href={link.href}
+                            data-active={isActive}
+                            className={cn(
+                              "nav-underline focus-ring relative inline-flex items-center px-3.5 py-2 text-sm font-medium rounded-[var(--r-sm)] bg-transparent",
+                              "transition-colors duration-150",
+                              isActive
+                                ? "text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {link.label}
+                          </Link>
+                        </NavigationMenuLink>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" sideOffset={8}>
+                        {link.desc}
+                      </TooltipContent>
+                    </Tooltip>
+                  </NavigationMenuItem>
+                )
+              })}
+            </NavigationMenuList>
+          </NavigationMenu>
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-3">
+          <div className="max-[960px]:hidden">
+            <SearchBar variant="nav" placeholder="Search..." />
+          </div>
+          <Link
+            href="/list"
+            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-4 py-2 rounded-full bg-foreground text-background hover:bg-ink-700 shadow-[var(--shadow-xs)] max-[960px]:hidden"
+          >
+            List Your Startup
+          </Link>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="focus-ring rounded-full">
+                <BcAvatar initials="KR" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              Your profile
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </nav>
+    </header>
+  )
+}
