@@ -1,4 +1,4 @@
-import type { Business } from "@/components/business-card"
+import type { Business } from "@/components/business-card";
 
 export const sampleBusinesses: Business[] = [
   {
@@ -138,18 +138,16 @@ export const sampleBusinesses: Business[] = [
     employees: 8,
     verified: true,
   },
-]
+];
 
 export const industries = [
   "All",
-  "Technology",
-  "Clean Energy",
-  "Health & Life",
-  "Media",
-  "Agriculture",
-  "Manufacturing",
   "Professional Services",
-]
+  "Health & Wellness",
+  "Construction & Industrial",
+  "Food & Hospitality",
+  "Others",
+];
 
 export const regions = [
   "All Regions",
@@ -161,4 +159,4 @@ export const regions = [
   "North Coast",
   "Kootenay",
   "Northeast",
-]
+];

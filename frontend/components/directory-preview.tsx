@@ -1,22 +1,62 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { ArrowRight } from "lucide-react"
-import { BusinessCard } from "./business-card"
-import { FilterPills } from "./filter-pills"
-import { sampleBusinesses, industries } from "@/lib/sample-data"
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { BusinessCard } from "./business-card";
+import { FilterPills } from "./filter-pills";
+import { sampleBusinesses, industries } from "@/lib/sample-data";
+import { getBusinesses, toBusinessCard } from "@/lib/api";
 
 export function DirectoryPreview() {
-  const [activeFilter, setActiveFilter] = useState("All")
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [businesses, setBusinesses] = useState(sampleBusinesses);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
 
-  const filtered =
-    activeFilter === "All"
-      ? sampleBusinesses.slice(0, 6)
-      : sampleBusinesses.filter((b) => b.industry === activeFilter).slice(0, 6)
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBusinesses() {
+      try {
+        const apiBusinesses = await getBusinesses({ limit: 50 });
+
+        if (!isMounted) return;
+
+        setBusinesses(apiBusinesses.map(toBusinessCard));
+        setIsUsingFallback(false);
+      } catch (error) {
+        console.error("Failed to load businesses from API:", error);
+
+        if (!isMounted) return;
+
+        setBusinesses(sampleBusinesses);
+        setIsUsingFallback(true);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadBusinesses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (activeFilter === "All") {
+      return businesses.slice(0, 6);
+    }
+
+    return businesses.filter((b) => b.industry === activeFilter).slice(0, 6);
+  }, [activeFilter, businesses]);
 
   return (
-    <section id="directory" className="border-t border-border py-[120px] max-[960px]:py-20">
+    <section
+      id="directory"
+      className="border-t border-border py-[120px] max-[960px]:py-20"
+    >
       <div className="max-w-[1200px] mx-auto px-12 max-[960px]:px-6">
         <div className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-ink-300 mb-4">
           {"03 \u2014 Directory"}
@@ -28,6 +68,14 @@ export function DirectoryPreview() {
           {
             "A curated selection from across British Columbia. Filter by industry to find what you're looking for."
           }
+        </p>
+
+        <p className="text-xs text-ink-300 mb-8">
+          {isLoading
+            ? "Loading businesses from backend API..."
+            : isUsingFallback
+              ? "Backend unavailable, showing fallback sample data."
+              : "Connected to live backend data."}
         </p>
 
         <FilterPills
@@ -56,5 +104,5 @@ export function DirectoryPreview() {
         )}
       </div>
     </section>
-  )
+  );
 }
