@@ -17,6 +17,7 @@ import { Wordmark } from "./wordmark"
 import { SearchBar } from "./search-bar"
 import { BcAvatar } from "./bc-avatar"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 
 const navLinks = [
   { label: "Demo", href: "/", desc: "Live product demo" },
@@ -27,6 +28,7 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname()
+  const { user, logout } = useAuth()
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -83,16 +85,37 @@ export function Navbar() {
           >
             List Your Startup
           </Link>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="focus-ring rounded-full">
-                <BcAvatar initials="KR" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8}>
-              Your profile
-            </TooltipContent>
-          </Tooltip>
+
+          {user ? (
+            /* Logged in — avatar + sign out */
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={logout}
+                  className="focus-ring rounded-full"
+                >
+                  <BcAvatar initials={user.username.slice(0, 2).toUpperCase()} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>
+                Sign out ({user.username})
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            /* Not logged in — sign in link */
+            <Link
+              href="/auth"
+              className={cn(
+                "btn-press focus-ring inline-flex items-center justify-center",
+                "font-sans text-[13px] font-medium px-4 py-2 rounded-full",
+                "border border-[var(--mist)] bg-white text-foreground",
+                "hover:bg-[var(--off-white)] hover:border-[var(--fog)]",
+                "transition-all duration-150",
+              )}
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </nav>
     </header>
