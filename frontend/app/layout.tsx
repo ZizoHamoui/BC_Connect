@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next"
 import { DM_Sans, DM_Mono } from "next/font/google"
 import { Instrument_Serif } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { Toaster } from "sonner"
+import { AuthProvider } from "@/lib/auth-context"
 import "./globals.css"
 
 const dmSans = DM_Sans({
@@ -63,7 +65,18 @@ export default function RootLayout({
       <body
         className={`${dmSans.variable} ${dmMono.variable} ${instrumentSerif.variable} font-sans antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                fontFamily: "var(--font-dm-sans), sans-serif",
+                borderRadius: "var(--r-md)",
+              },
+            }}
+          />
+        </AuthProvider>
         <Analytics />
       </body>
     </html>
