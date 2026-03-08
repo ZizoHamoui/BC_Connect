@@ -157,3 +157,35 @@ export function deleteBusiness(id: string) {
     auth: true,
   });
 }
+
+export function getBusinessById(id: string) {
+  return request<ApiBusiness>(`/businesses/${id}`);
+}
+
+export function getFavorites() {
+  return request<ApiBusiness[]>("/users/me/favorites", { auth: true });
+}
+
+export function toggleFavorite(businessId: string) {
+  return request<{ favorites: string[]; added: boolean }>(
+    "/users/me/favorites",
+    {
+      method: "POST",
+      body: JSON.stringify({ businessId }),
+      auth: true,
+    },
+  );
+}
+
+export function updateProfile(updates: { username?: string; email?: string }) {
+  return request<{
+    id: string;
+    username: string;
+    email?: string;
+    role: string;
+  }>("/users/me", {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+    auth: true,
+  });
+}

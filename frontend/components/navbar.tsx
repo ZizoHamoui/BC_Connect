@@ -1,48 +1,69 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LogOut, User } from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuList,
   NavigationMenuItem,
   NavigationMenuLink,
-} from "@/components/ui/navigation-menu"
+} from "@/components/ui/navigation-menu";
 import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-} from "@/components/ui/tooltip"
-import { Wordmark } from "./wordmark"
-import { SearchBar } from "./search-bar"
-import { BcAvatar } from "./bc-avatar"
-import { cn } from "@/lib/utils"
-import { useAuth } from "@/lib/auth-context"
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Wordmark } from "./wordmark";
+import { SearchBar } from "./search-bar";
+import { BcAvatar } from "./bc-avatar";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
 const navLinks = [
   { label: "Demo", href: "/", desc: "Live product demo" },
-  { label: "Style Guide", href: "/styleguide", desc: "Design system reference" },
+  {
+    label: "Style Guide",
+    href: "/styleguide",
+    desc: "Design system reference",
+  },
   { label: "Directory", href: "/#directory", desc: "Browse all BC startups" },
   { label: "Jobs", href: "/#jobs", desc: "Open roles across BC" },
-]
+];
 
 export function Navbar() {
-  const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-12 h-16 max-[960px]:px-6">
         {/* Left side */}
         <div className="flex items-center gap-10">
-          <Link href="/" aria-label="BC Connect Home" className="lattice-hover focus-ring rounded-sm">
+          <Link
+            href="/"
+            aria-label="BC Connect Home"
+            className="lattice-hover focus-ring rounded-sm"
+          >
             <Wordmark size="nav" />
           </Link>
 
           <NavigationMenu viewport={false} className="max-[960px]:hidden">
             <NavigationMenuList className="gap-0.5">
               {navLinks.map((link) => {
-                const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href.replace(/#.*/, "")) && link.href !== "/"
+                const isActive =
+                  link.href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(link.href.replace(/#.*/, "")) &&
+                      link.href !== "/";
                 return (
                   <NavigationMenuItem key={link.href}>
                     <Tooltip>
@@ -56,7 +77,7 @@ export function Navbar() {
                               "transition-colors duration-150",
                               isActive
                                 ? "text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
+                                : "text-muted-foreground hover:text-foreground",
                             )}
                           >
                             {link.label}
@@ -68,7 +89,7 @@ export function Navbar() {
                       </TooltipContent>
                     </Tooltip>
                   </NavigationMenuItem>
-                )
+                );
               })}
             </NavigationMenuList>
           </NavigationMenu>
@@ -87,20 +108,40 @@ export function Navbar() {
           </Link>
 
           {user ? (
-            /* Logged in — avatar + sign out */
-            <Tooltip>
-              <TooltipTrigger asChild>
+            /* Logged in — avatar dropdown */
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
-                  onClick={logout}
                   className="focus-ring rounded-full"
+                  aria-label="Account menu"
                 >
-                  <BcAvatar initials={user.username.slice(0, 2).toUpperCase()} />
+                  <BcAvatar
+                    initials={user.username.slice(0, 2).toUpperCase()}
+                  />
                 </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>
-                Sign out ({user.username})
-              </TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={8}>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium">{user.username}</span>
+                  </div>
+                  {user.email && (
+                    <p className="text-xs text-muted-foreground mt-0.5 pl-[22px]">
+                      {user.email}
+                    </p>
+                  )}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 mr-2" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             /* Not logged in — sign in link */
             <Link
@@ -119,5 +160,5 @@ export function Navbar() {
         </div>
       </nav>
     </header>
-  )
+  );
 }
