@@ -83,8 +83,11 @@ export default function AuthPage() {
         setIsLoading(true)
         try {
             await register(suUsername, suPassword, suEmail || undefined)
-            toast.success("Account created!")
-            router.push("/")
+            toast.success("Account created! Please sign in.")
+            setSuUsername("")
+            setSuEmail("")
+            setSuPassword("")
+            setActiveTab("signin")
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Registration failed."
             toast.error(msg)

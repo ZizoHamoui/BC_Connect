@@ -1,7 +1,11 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 export function CtaSection() {
+  const { user } = useAuth()
   return (
     <section className="border-t border-border py-[120px] max-[960px]:py-20">
       <div className="max-w-[1200px] mx-auto px-12 max-[960px]:px-6">
@@ -28,14 +32,14 @@ export function CtaSection() {
             </p>
             <div className="flex justify-center gap-4 flex-wrap">
               <Link
-                href="/list"
+                href={user ? "/directory?list=true" : "/auth"}
                 className="btn-press focus-ring inline-flex items-center justify-center gap-2 font-sans text-base font-medium px-9 py-4 rounded-full bg-signal text-background hover:bg-signal-hover shadow-[var(--shadow-sm)]"
               >
-                List Your Startup
+                {user ? "List Your Startup" : "Sign In to Get Started"}
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/#directory"
+                href={user ? "/directory" : "/auth"}
                 className="ghost-glow focus-ring inline-flex items-center justify-center font-sans text-base font-medium px-9 py-4 rounded-full bg-transparent text-ink-300 border border-ink-700"
               >
                 Browse Directory

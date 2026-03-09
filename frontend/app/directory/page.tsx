@@ -1,18 +1,31 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import Link from "next/link";
+import { Suspense, useEffect, useState, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { BusinessCard } from "@/components/business-card";
 import { FilterPills } from "@/components/filter-pills";
 import { SearchBar } from "@/components/search-bar";
 import { EmptyState } from "@/components/empty-state";
+import { AddBusinessModal } from "@/components/add-business-modal";
 import { getBusinesses, toBusinessCard } from "@/lib/api";
 import { sampleBusinesses, industries, regions } from "@/lib/sample-data";
 import type { Business } from "@/components/business-card";
 
 export default function DirectoryPage() {
+  return (
+    <Suspense>
+      <DirectoryContent />
+    </Suspense>
+  );
+}
+
+function DirectoryContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUsingFallback, setIsUsingFallback] = useState(false);
@@ -20,14 +33,27 @@ export default function DirectoryPage() {
   const [activeIndustry, setActiveIndustry] = useState("All");
   const [activeRegion, setActiveRegion] = useState("All Regions");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
 
-  // Debounce search input
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/auth");
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (searchParams.get("list") === "true") {
+      setModalOpen(true);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(timer);
   }, [search]);
 
   const fetchBusinesses = useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
       const params: Parameters<typeof getBusinesses>[0] = { limit: 200 };
@@ -44,14 +70,13 @@ export default function DirectoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, activeIndustry, activeRegion]);
+  }, [user, debouncedSearch, activeIndustry, activeRegion]);
 
   useEffect(() => {
     fetchBusinesses();
   }, [fetchBusinesses]);
 
   const displayedBusinesses = useMemo(() => {
-    // Client-side filter for fallback data
     if (!isUsingFallback) return businesses;
     return businesses.filter((b) => {
       const matchesIndustry =
@@ -72,12 +97,15 @@ export default function DirectoryPage() {
     debouncedSearch,
   ]);
 
+  if (authLoading || !user) {
+    return null;
+  }
+
   return (
     <main>
       <Navbar />
 
       <div className="max-w-[1200px] mx-auto px-12 max-[960px]:px-6 py-20">
-        {/* Header */}
         <div className="mb-12">
           <div className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-ink-300 mb-4">
             Directory
@@ -90,7 +118,6 @@ export default function DirectoryPage() {
           </p>
         </div>
 
-        {/* Search + actions row */}
         <div className="flex items-center gap-4 mb-8 max-[640px]:flex-col max-[640px]:items-stretch">
           <SearchBar
             placeholder="Search startups, industries, descriptions…"
@@ -98,15 +125,14 @@ export default function DirectoryPage() {
             onChange={setSearch}
             className="flex-1"
           />
-          <Link
-            href="/list"
-            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-5 py-3 rounded-full bg-foreground text-background hover:bg-ink-700 shrink-0"
+          <button
+            onClick={() => setModalOpen(true)}
+            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-5 py-3 rounded-full bg-foreground text-background hover:bg-ink-700 shrink-0 cursor-pointer"
           >
             + List Your Startup
-          </Link>
+          </button>
         </div>
 
-        {/* Region filter */}
         <FilterPills
           filters={regions}
           activeFilter={activeRegion}
@@ -114,7 +140,6 @@ export default function DirectoryPage() {
           className="mb-4"
         />
 
-        {/* Industry filter */}
         <FilterPills
           filters={industries}
           activeFilter={activeIndustry}
@@ -122,7 +147,6 @@ export default function DirectoryPage() {
           className="mb-8"
         />
 
-        {/* Status line */}
         <p className="text-xs text-ink-300 mb-8">
           {isLoading
             ? "Loading…"
@@ -131,7 +155,6 @@ export default function DirectoryPage() {
               : `${displayedBusinesses.length} result${displayedBusinesses.length !== 1 ? "s" : ""} — live data.`}
         </p>
 
-        {/* Grid */}
         {!isLoading && displayedBusinesses.length === 0 ? (
           <EmptyState
             title="No startups found"
@@ -154,6 +177,14 @@ export default function DirectoryPage() {
       </div>
 
       <Footer />
+
+      <AddBusinessModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onBusinessAdded={(newBiz) =>
+          setBusinesses((prev) => [newBiz, ...prev])
+        }
+      />
     </main>
   );
 }
