@@ -1,6 +1,32 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+function normalizeUsername(username) {
+  return typeof username === "string" ? username.trim() : "";
+}
+
+function normalizeEmail(email) {
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+}
+
+function handleUserWriteError(error, res, fallbackMessage) {
+  if (error?.code === 11000) {
+    const duplicateField = Object.keys(error.keyPattern || {})[0] || "field";
+    return res
+      .status(409)
+      .json({ message: `${duplicateField} is already in use.` });
+  }
+
+  if (error?.name === "ValidationError") {
+    const message =
+      Object.values(error.errors || {})[0]?.message || fallbackMessage;
+    return res.status(400).json({ message });
+  }
+
+  console.error(fallbackMessage, error);
+  return res.status(500).json({ message: fallbackMessage });
+}
+
 function signAuthToken(user) {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET is missing.");
@@ -19,7 +45,10 @@ function signAuthToken(user) {
 
 async function register(req, res) {
   try {
-    const { username, email, password } = req.body;
+    const username = normalizeUsername(req.body?.username);
+    const email = normalizeEmail(req.body?.email);
+    const password =
+      typeof req.body?.password === "string" ? req.body.password : "";
 
     if (!username || !password) {
       return res
@@ -37,7 +66,7 @@ async function register(req, res) {
 
     const user = await User.create({
       username,
-      email,
+      email: email || undefined,
       password,
     });
 
@@ -48,15 +77,14 @@ async function register(req, res) {
       user: user.toSafeJSON(),
     });
   } catch (error) {
-    console.error("Register failed:", error);
-    return res.status(500).json({ message: "Unable to register user." });
+    return handleUserWriteError(error, res, "Unable to register user.");
   }
 }
 
 async function login(req, res) {
   try {
     const { identifier, username, email, password } = req.body;
-    const loginIdentifier = identifier || username || email;
+    const loginIdentifier = normalizeUsername(identifier || username || email);
 
     if (!loginIdentifier || !password) {
       return res

@@ -35,7 +35,7 @@ const navLinks = [
     href: "/styleguide",
     desc: "Design system reference",
   },
-  { label: "Directory", href: "/#directory", desc: "Browse all BC startups" },
+  { label: "Directory", href: "/directory", desc: "Browse all BC startups" },
   { label: "Jobs", href: "/#jobs", desc: "Open roles across BC" },
 ];
 

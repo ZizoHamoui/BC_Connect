@@ -25,7 +25,22 @@ export interface ApiBusiness {
   description?: string;
   tags?: string[];
   employees?: number;
+  postalCode?: string;
+  contact?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+  };
+  coordinates?: {
+    lat?: number;
+    lng?: number;
+  };
   verificationStatus?: "pending" | "verified" | "rejected";
+}
+
+export interface CreateBusinessPayload extends Omit<ApiBusiness, "_id"> {
+  industry?: string;
+  industryCategory?: string;
 }
 
 interface RequestOptions extends RequestInit {
@@ -129,7 +144,8 @@ export async function getBusinesses(params?: {
   region?: string;
   city?: string;
   search?: string;
-  limit?: number;
+  limit?: number | "all";
+  page?: number;
 }) {
   const searchParams = new URLSearchParams();
 
@@ -138,15 +154,21 @@ export async function getBusinesses(params?: {
   if (params?.city) searchParams.set("city", params.city);
   if (params?.search) searchParams.set("search", params.search);
   if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.page) searchParams.set("page", String(params.page));
 
   const query = searchParams.toString();
   return request<ApiBusiness[]>(`/businesses${query ? `?${query}` : ""}`);
 }
 
-export function createBusiness(data: Omit<ApiBusiness, "_id">) {
+export function createBusiness(data: CreateBusinessPayload) {
+  const payload = {
+    ...data,
+    industry: data.industry ?? data.industryCategory,
+  };
+
   return request<ApiBusiness>("/businesses", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
     auth: true,
   });
 }

@@ -5,8 +5,14 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { BusinessCard } from "./business-card";
 import { FilterPills } from "./filter-pills";
-import { sampleBusinesses, industries } from "@/lib/sample-data";
+import { sampleBusinesses } from "@/lib/sample-data";
 import { getBusinesses, toBusinessCard } from "@/lib/api";
+
+function uniqueSorted(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
 
 export function DirectoryPreview() {
   const [activeFilter, setActiveFilter] = useState("All");
@@ -52,6 +58,17 @@ export function DirectoryPreview() {
     return businesses.filter((b) => b.industry === activeFilter).slice(0, 6);
   }, [activeFilter, businesses]);
 
+  const availableIndustries = useMemo(
+    () => ["All", ...uniqueSorted(businesses.map((business) => business.industry))],
+    [businesses],
+  );
+
+  useEffect(() => {
+    if (!availableIndustries.includes(activeFilter)) {
+      setActiveFilter("All");
+    }
+  }, [activeFilter, availableIndustries]);
+
   return (
     <section
       id="directory"
@@ -79,7 +96,7 @@ export function DirectoryPreview() {
         </p>
 
         <FilterPills
-          filters={industries}
+          filters={availableIndustries}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
           className="mb-12"
@@ -94,7 +111,7 @@ export function DirectoryPreview() {
         {filtered.length > 0 && (
           <div className="text-center">
             <Link
-              href="/#directory"
+              href="/directory"
               className="btn-press focus-ring group inline-flex items-center justify-center gap-2 font-sans text-sm font-medium px-[22px] py-[11px] rounded-full bg-card text-foreground border border-border hover:border-fog hover:bg-off-white"
             >
               View All Startups

@@ -53,7 +53,7 @@ export function Hero() {
           style={{ animationDelay: "320ms" }}
         >
           <Link
-            href="/#directory"
+            href="/directory"
             className="btn-press focus-ring inline-flex items-center justify-center gap-2 font-sans text-base font-medium px-9 py-4 rounded-full bg-foreground text-background hover:bg-ink-700 shadow-[var(--shadow-sm)]"
           >
             Explore Directory

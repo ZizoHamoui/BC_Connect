@@ -35,7 +35,7 @@ export function CtaSection() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/#directory"
+                href="/directory"
                 className="ghost-glow focus-ring inline-flex items-center justify-center font-sans text-base font-medium px-9 py-4 rounded-full bg-transparent text-ink-300 border border-ink-700"
               >
                 Browse Directory
