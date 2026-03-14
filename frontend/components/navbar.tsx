@@ -28,15 +28,18 @@ import { BcAvatar } from "./bc-avatar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
-const navLinks = [
+const publicNavLinks = [
   { label: "Demo", href: "/", desc: "Live product demo" },
   {
     label: "Style Guide",
     href: "/styleguide",
     desc: "Design system reference",
   },
-  { label: "Directory", href: "/directory", desc: "Browse all BC startups" },
   { label: "Jobs", href: "/#jobs", desc: "Open roles across BC" },
+];
+
+const authNavLinks = [
+  { label: "Directory", href: "/directory", desc: "Browse all BC startups" },
 ];
 
 export function Navbar() {
@@ -58,7 +61,7 @@ export function Navbar() {
 
           <NavigationMenu viewport={false} className="max-[960px]:hidden">
             <NavigationMenuList className="gap-0.5">
-              {navLinks.map((link) => {
+              {[...publicNavLinks, ...(user ? authNavLinks : [])].map((link) => {
                 const isActive =
                   link.href === "/"
                     ? pathname === "/"
@@ -100,12 +103,14 @@ export function Navbar() {
           <div className="max-[960px]:hidden">
             <SearchBar variant="nav" placeholder="Search..." />
           </div>
-          <Link
-            href="/list"
-            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-4 py-2 rounded-full bg-foreground text-background hover:bg-ink-700 shadow-[var(--shadow-xs)] max-[960px]:hidden"
-          >
-            List Your Startup
-          </Link>
+          {user && (
+            <Link
+              href="/directory?list=true"
+              className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-4 py-2 rounded-full bg-foreground text-background hover:bg-ink-700 shadow-[var(--shadow-xs)] max-[960px]:hidden"
+            >
+              List Your Startup
+            </Link>
+          )}
 
           {user ? (
             /* Logged in — avatar dropdown */

@@ -3,8 +3,10 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { SearchBar } from "./search-bar"
+import { useAuth } from "@/lib/auth-context"
 
 export function Hero() {
+  const { user } = useAuth()
   return (
     <section className="relative overflow-hidden">
       {/* Lattice dot-grid background */}
@@ -53,18 +55,20 @@ export function Hero() {
           style={{ animationDelay: "320ms" }}
         >
           <Link
-            href="/directory"
+            href={user ? "/directory" : "/auth"}
             className="btn-press focus-ring inline-flex items-center justify-center gap-2 font-sans text-base font-medium px-9 py-4 rounded-full bg-foreground text-background hover:bg-ink-700 shadow-[var(--shadow-sm)]"
           >
             Explore Directory
             <ArrowRight className="w-4 h-4" />
           </Link>
-          <Link
-            href="/list"
-            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-base font-medium px-9 py-4 rounded-full bg-signal text-background hover:bg-signal-hover shadow-[var(--shadow-xs)]"
-          >
-            List Your Startup
-          </Link>
+          {user && (
+            <Link
+              href="/directory?list=true"
+              className="btn-press focus-ring inline-flex items-center justify-center font-sans text-base font-medium px-9 py-4 rounded-full bg-signal text-background hover:bg-signal-hover shadow-[var(--shadow-xs)]"
+            >
+              List Your Startup
+            </Link>
+          )}
         </div>
 
         {/* Hero meta - stagger 5 */}

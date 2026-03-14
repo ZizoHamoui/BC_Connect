@@ -1,26 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { Suspense, useEffect, useState, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { BusinessCard } from "@/components/business-card";
 import { FilterPills } from "@/components/filter-pills";
 import { SearchBar } from "@/components/search-bar";
 import { EmptyState } from "@/components/empty-state";
+import { AddBusinessModal } from "@/components/add-business-modal";
 import { getBusinesses, toBusinessCard } from "@/lib/api";
-import { sampleBusinesses } from "@/lib/sample-data";
+import { sampleBusinesses, industries, regions } from "@/lib/sample-data";
 import type { Business } from "@/components/business-card";
 
-const PAGE_SIZE = 200;
-
-function uniqueSorted(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b),
+export default function DirectoryPage() {
+  return (
+    <Suspense>
+      <DirectoryContent />
+    </Suspense>
   );
 }
 
-export default function DirectoryPage() {
+function DirectoryContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUsingFallback, setIsUsingFallback] = useState(false);
@@ -28,6 +33,19 @@ export default function DirectoryPage() {
   const [activeIndustry, setActiveIndustry] = useState("All");
   const [activeRegion, setActiveRegion] = useState("All Regions");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/auth");
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (searchParams.get("list") === "true") {
+      setModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
@@ -35,34 +53,16 @@ export default function DirectoryPage() {
   }, [search]);
 
   const fetchBusinesses = useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
-
     try {
-      const allBusinesses: Business[] = [];
-      let page = 1;
+      const params: Parameters<typeof getBusinesses>[0] = { limit: 200 };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (activeIndustry !== "All") params.industry = activeIndustry;
+      if (activeRegion !== "All Regions") params.region = activeRegion;
 
-      for (;;) {
-        const params: Parameters<typeof getBusinesses>[0] = {
-          limit: PAGE_SIZE,
-          page,
-        };
-
-        if (debouncedSearch) params.search = debouncedSearch;
-        if (activeIndustry !== "All") params.industry = activeIndustry;
-        if (activeRegion !== "All Regions") params.region = activeRegion;
-
-        const batch = await getBusinesses(params);
-        const mappedBatch = batch.map(toBusinessCard);
-        allBusinesses.push(...mappedBatch);
-
-        if (mappedBatch.length < PAGE_SIZE) {
-          break;
-        }
-
-        page += 1;
-      }
-
-      setBusinesses(allBusinesses);
+      const data = await getBusinesses(params);
+      setBusinesses(data.map(toBusinessCard));
       setIsUsingFallback(false);
     } catch {
       setBusinesses(sampleBusinesses);
@@ -70,7 +70,7 @@ export default function DirectoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, activeIndustry, activeRegion]);
+  }, [user, debouncedSearch, activeIndustry, activeRegion]);
 
   useEffect(() => {
     fetchBusinesses();
@@ -78,19 +78,15 @@ export default function DirectoryPage() {
 
   const displayedBusinesses = useMemo(() => {
     if (!isUsingFallback) return businesses;
-
-    return businesses.filter((business) => {
+    return businesses.filter((b) => {
       const matchesIndustry =
-        activeIndustry === "All" || business.industry === activeIndustry;
+        activeIndustry === "All" || b.industry === activeIndustry;
       const matchesRegion =
-        activeRegion === "All Regions" || business.region === activeRegion;
+        activeRegion === "All Regions" || b.region === activeRegion;
       const matchesSearch =
         !debouncedSearch ||
-        business.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        business.description
-          .toLowerCase()
-          .includes(debouncedSearch.toLowerCase());
-
+        b.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        b.description.toLowerCase().includes(debouncedSearch.toLowerCase());
       return matchesIndustry && matchesRegion && matchesSearch;
     });
   }, [
@@ -101,116 +97,63 @@ export default function DirectoryPage() {
     debouncedSearch,
   ]);
 
-  const availableIndustries = useMemo(() => {
-    const source = isUsingFallback ? sampleBusinesses : businesses;
-    return ["All", ...uniqueSorted(source.map((business) => business.industry))];
-  }, [businesses, isUsingFallback]);
-
-  const availableRegions = useMemo(() => {
-    const source = isUsingFallback ? sampleBusinesses : businesses;
-    return [
-      "All Regions",
-      ...uniqueSorted(source.map((business) => business.region)),
-    ];
-  }, [businesses, isUsingFallback]);
-
-  useEffect(() => {
-    if (!availableIndustries.includes(activeIndustry)) {
-      setActiveIndustry("All");
-    }
-  }, [activeIndustry, availableIndustries]);
-
-  useEffect(() => {
-    if (!availableRegions.includes(activeRegion)) {
-      setActiveRegion("All Regions");
-    }
-  }, [activeRegion, availableRegions]);
-
-  const resultLabel = `${displayedBusinesses.length} result${
-    displayedBusinesses.length === 1 ? "" : "s"
-  }`;
+  if (authLoading || !user) {
+    return null;
+  }
 
   return (
     <main>
       <Navbar />
 
       <div className="max-w-[1200px] mx-auto px-12 max-[960px]:px-6 py-20">
-        <section className="mb-12 rounded-[32px] border border-border bg-[linear-gradient(180deg,#FFFFFF_0%,#F6F7F3_100%)] px-8 py-10 max-[960px]:px-6">
-          <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-8 max-[960px]:grid-cols-1">
-            <div>
-              <div className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-ink-300 mb-4">
-                Full Directory
-              </div>
-              <h1 className="font-display text-[64px] max-[960px]:text-[40px] font-normal leading-[0.94] tracking-[-0.035em] text-foreground mb-5 text-balance">
-                Every BC startup, one screen.
-              </h1>
-              <p className="text-lg font-light text-ink-400 max-w-[620px] leading-relaxed">
-                Browse the entire network with live search, region filters, and
-                industry sorting. The page now loads the directory in batches so
-                records appear reliably even with a large dataset.
-              </p>
-            </div>
-
-            <div className="rounded-[24px] border border-border bg-card px-6 py-6 self-start">
-              <div className="font-mono text-[11px] font-medium tracking-[0.12em] uppercase text-ink-300 mb-3">
-                Network Snapshot
-              </div>
-              <div className="font-display text-[44px] leading-none tracking-[-0.04em] text-foreground mb-2">
-                {isLoading ? "..." : displayedBusinesses.length}
-              </div>
-              <p className="text-sm text-ink-400 leading-relaxed">
-                {isUsingFallback
-                  ? "Fallback sample records are showing because the backend is unavailable."
-                  : "Live database records after your active filters are applied."}
-              </p>
-            </div>
+        <div className="mb-12">
+          <div className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-ink-300 mb-4">
+            Directory
           </div>
-        </section>
+          <h1 className="font-display text-[56px] max-[960px]:text-[36px] font-normal leading-[0.95] tracking-[-0.03em] text-foreground mb-4">
+            BC Startups.
+          </h1>
+          <p className="text-lg font-light text-ink-400 max-w-[560px] leading-relaxed">
+            Browse the full directory of startups across British Columbia.
+          </p>
+        </div>
 
         <div className="flex items-center gap-4 mb-8 max-[640px]:flex-col max-[640px]:items-stretch">
           <SearchBar
-            placeholder="Search startups, industries, descriptions..."
+            placeholder="Search startups, industries, descriptions…"
             value={search}
             onChange={setSearch}
             className="flex-1"
           />
-          <Link
-            href="/list"
-            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-5 py-3 rounded-full bg-foreground text-background hover:bg-ink-700 shrink-0"
+          <button
+            onClick={() => setModalOpen(true)}
+            className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-5 py-3 rounded-full bg-foreground text-background hover:bg-ink-700 shrink-0 cursor-pointer"
           >
             + List Your Startup
-          </Link>
+          </button>
         </div>
 
         <FilterPills
-          filters={availableRegions}
+          filters={regions}
           activeFilter={activeRegion}
           onFilterChange={setActiveRegion}
           className="mb-4"
         />
 
         <FilterPills
-          filters={availableIndustries}
+          filters={industries}
           activeFilter={activeIndustry}
           onFilterChange={setActiveIndustry}
           className="mb-8"
         />
 
-        <div className="flex items-center justify-between gap-4 mb-8 max-[640px]:flex-col max-[640px]:items-start">
-          <p className="text-xs text-ink-300">
-            {isLoading
-              ? "Loading startups..."
-              : isUsingFallback
-                ? `Showing fallback sample data. ${resultLabel}.`
-                : `${resultLabel} from the live database.`}
-          </p>
-
-          {!isLoading && (
-            <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-ink-300">
-              {activeRegion} / {activeIndustry}
-            </p>
-          )}
-        </div>
+        <p className="text-xs text-ink-300 mb-8">
+          {isLoading
+            ? "Loading…"
+            : isUsingFallback
+              ? `Showing fallback sample data (backend unavailable). ${displayedBusinesses.length} result${displayedBusinesses.length !== 1 ? "s" : ""}.`
+              : `${displayedBusinesses.length} result${displayedBusinesses.length !== 1 ? "s" : ""} — live data.`}
+        </p>
 
         {!isLoading && displayedBusinesses.length === 0 ? (
           <EmptyState
@@ -220,20 +163,28 @@ export default function DirectoryPage() {
         ) : (
           <div className="grid grid-cols-3 max-[960px]:grid-cols-2 max-[640px]:grid-cols-1 gap-6">
             {isLoading
-              ? Array.from({ length: 9 }).map((_, index) => (
+              ? Array.from({ length: 6 }).map((_, i) => (
                   <div
-                    key={index}
+                    key={i}
                     className="h-56 rounded-[var(--r-xl)] bg-cloud animate-pulse"
                   />
                 ))
-              : displayedBusinesses.map((business) => (
-                  <BusinessCard key={business.id} business={business} />
+              : displayedBusinesses.map((biz) => (
+                  <BusinessCard key={biz.id} business={biz} />
                 ))}
           </div>
         )}
       </div>
 
       <Footer />
+
+      <AddBusinessModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onBusinessAdded={(newBiz) =>
+          setBusinesses((prev) => [newBiz, ...prev])
+        }
+      />
     </main>
   );
 }
