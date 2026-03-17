@@ -129,7 +129,7 @@ function DirectoryContent() {
             onClick={() => setModalOpen(true)}
             className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-5 py-3 rounded-full bg-foreground text-background hover:bg-ink-700 shrink-0 cursor-pointer"
           >
-            + List Your Startup
+            {user?.role === "admin" ? "+ Add a Listing" : "+ List Your Startup"}
           </button>
         </div>
 

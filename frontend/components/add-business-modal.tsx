@@ -84,6 +84,7 @@ export function AddBusinessModal({
     e.preventDefault()
     setIsLoading(true)
     try {
+      const isAdmin = user?.role === "admin"
       const result = await createBusiness({
         name,
         industry,
@@ -91,8 +92,13 @@ export function AddBusinessModal({
         city,
         address: address || undefined,
         description,
+        ...(isAdmin ? { verificationStatus: "verified" } : {}),
       })
-      toast.success(`${result.name} has been listed!`)
+      toast.success(
+        isAdmin
+          ? `${result.name} has been listed!`
+          : "Listing Added. Pending Approval",
+      )
       const cardData = toBusinessCard(result)
       onBusinessAdded(cardData)
       resetForm()

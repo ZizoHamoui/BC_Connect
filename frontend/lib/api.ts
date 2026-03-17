@@ -121,6 +121,7 @@ export function toBusinessCard(business: ApiBusiness): Business {
     tags: business.tags,
     employees: business.employees,
     verified: business.verificationStatus === "verified",
+    verificationStatus: business.verificationStatus,
   };
 }
 
@@ -140,7 +141,9 @@ export async function getBusinesses(params?: {
   if (params?.limit) searchParams.set("limit", String(params.limit));
 
   const query = searchParams.toString();
-  return request<ApiBusiness[]>(`/businesses${query ? `?${query}` : ""}`);
+  return request<ApiBusiness[]>(`/businesses${query ? `?${query}` : ""}`, {
+    auth: true,
+  });
 }
 
 export function createBusiness(data: Omit<ApiBusiness, "_id">) {
@@ -188,4 +191,88 @@ export function updateProfile(updates: { username?: string; email?: string }) {
     body: JSON.stringify(updates),
     auth: true,
   });
+}
+
+// ── Admin API ──────────────────────────────────────────────────────
+
+export interface AdminStats {
+  businessesThisMonth: number;
+  totalBusinesses: number;
+  monthOverMonthChange: number;
+  totalMembers: number;
+}
+
+export interface AdminUser {
+  _id: string;
+  username: string;
+  email?: string;
+  createdAt: string;
+}
+
+export function getAdminStats() {
+  return request<AdminStats>("/admin/stats", { auth: true });
+}
+
+export function getPendingBusinesses() {
+  return request<ApiBusiness[]>("/admin/businesses/pending", { auth: true });
+}
+
+export function updateBusinessStatus(
+  id: string,
+  status: "verified" | "rejected",
+) {
+  return request<ApiBusiness>(`/admin/businesses/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+    auth: true,
+  });
+}
+
+export function getAdminUsers() {
+  return request<AdminUser[]>("/admin/admins", { auth: true });
+}
+
+export interface MemberUser {
+  _id: string;
+  username: string;
+  email?: string;
+  role: "member" | "admin";
+  createdAt: string;
+}
+
+export function getMembers(search?: string) {
+  const query = search ? `?search=${encodeURIComponent(search)}` : "";
+  return request<MemberUser[]>(`/admin/members${query}`, { auth: true });
+}
+
+export function updateUserRoles(
+  changes: { userId: string; role: "member" | "admin" }[],
+) {
+  return request<{ updated: MemberUser[] }>("/admin/members/roles", {
+    method: "PATCH",
+    body: JSON.stringify({ changes }),
+    auth: true,
+  });
+}
+
+export interface AdminActionEntry {
+  _id: string;
+  action: "approved" | "rejected" | "deleted";
+  businessName: string;
+  businessIndustry?: string;
+  businessCity?: string;
+  businessRegion?: string;
+  performedBy: { _id: string; username: string } | null;
+  createdAt: string;
+}
+
+export function deleteBusinessAdmin(id: string) {
+  return request<void>(`/admin/businesses/${id}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
+export function getActionHistory() {
+  return request<AdminActionEntry[]>("/admin/actions", { auth: true });
 }

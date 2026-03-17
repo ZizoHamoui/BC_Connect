@@ -16,6 +16,11 @@ async function getAll(req, res) {
       ];
     }
 
+    const isAdmin = req.user && req.user.role === "admin";
+    if (!isAdmin) {
+      query.verificationStatus = "verified";
+    }
+
     const businesses = await Business.find(query)
       .sort({ createdAt: -1 })
       .limit(Math.min(Number(limit) || 100, 200));
@@ -52,9 +57,11 @@ async function create(req, res) {
       });
     }
 
+    const isAdmin = req.user.role === "admin";
     const business = await Business.create({
       ...req.body,
       createdBy: req.user.id,
+      verificationStatus: isAdmin ? (req.body.verificationStatus || "verified") : "pending",
     });
 
     return res.status(201).json(business);

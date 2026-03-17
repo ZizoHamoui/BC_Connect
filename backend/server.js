@@ -8,6 +8,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
 const businessRoutes = require("./routes/businesses");
 const userRoutes = require("./routes/users");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,6 +33,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/businesses", businessRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found." });

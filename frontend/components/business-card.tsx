@@ -1,4 +1,5 @@
 import { IndustryTag } from "./industry-tag"
+import { StatusBadge } from "./status-badge"
 import { MapPin, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +13,7 @@ export interface Business {
   tags?: string[]
   employees?: number
   verified?: boolean
+  verificationStatus?: "pending" | "verified" | "rejected"
 }
 
 const industryGradients: Record<string, { from: string; to: string; icon: string }> = {
@@ -76,6 +78,17 @@ export function BusinessCard({ business, onClick }: BusinessCardProps) {
         <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center opacity-0 transition-opacity duration-[280ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:opacity-100">
           <ArrowUpRight className="w-3.5 h-3.5 text-foreground" />
         </div>
+
+        {/* Verification status badge (admin view) */}
+        {business.verificationStatus && business.verificationStatus !== "verified" && (
+          <div className="absolute top-4 left-4">
+            <StatusBadge
+              variant={business.verificationStatus === "pending" ? "caution" : "negative"}
+            >
+              {business.verificationStatus === "pending" ? "Pending" : "Rejected"}
+            </StatusBadge>
+          </div>
+        )}
       </div>
 
       {/* Card body */}
