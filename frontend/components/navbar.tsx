@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 const publicNavLinks = [
-  { label: "Demo", href: "/", desc: "Live product demo" },
+  { label: "Home", href: "/", desc: "Home page" },
   {
     label: "Style Guide",
     href: "/styleguide",
@@ -40,6 +40,10 @@ const publicNavLinks = [
 
 const authNavLinks = [
   { label: "Directory", href: "/directory", desc: "Browse all BC startups" },
+];
+
+const adminNavLinks = [
+  { label: "Admin", href: "/admin", desc: "Admin dashboard" },
 ];
 
 export function Navbar() {
@@ -61,7 +65,7 @@ export function Navbar() {
 
           <NavigationMenu viewport={false} className="max-[960px]:hidden">
             <NavigationMenuList className="gap-0.5">
-              {[...publicNavLinks, ...(user ? authNavLinks : [])].map((link) => {
+              {[...publicNavLinks, ...(user ? authNavLinks : []), ...(user?.role === "admin" ? adminNavLinks : [])].map((link) => {
                 const isActive =
                   link.href === "/"
                     ? pathname === "/"
@@ -108,7 +112,7 @@ export function Navbar() {
               href="/directory?list=true"
               className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-4 py-2 rounded-full bg-foreground text-background hover:bg-ink-700 shadow-[var(--shadow-xs)] max-[960px]:hidden"
             >
-              List Your Startup
+              {user.role === "admin" ? "Add a Listing" : "List Your Startup"}
             </Link>
           )}
 
