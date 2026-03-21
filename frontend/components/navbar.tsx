@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { Bookmark, LogOut, User } from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuList,
@@ -53,7 +53,6 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-12 h-16 max-[960px]:px-6">
-        {/* Left side */}
         <div className="flex items-center gap-10">
           <Link
             href="/"
@@ -65,7 +64,11 @@ export function Navbar() {
 
           <NavigationMenu viewport={false} className="max-[960px]:hidden">
             <NavigationMenuList className="gap-0.5">
-              {[...publicNavLinks, ...(user ? authNavLinks : []), ...(user?.role === "admin" ? adminNavLinks : [])].map((link) => {
+              {[
+                ...publicNavLinks,
+                ...(user ? authNavLinks : []),
+                ...(user?.role === "admin" ? adminNavLinks : []),
+              ].map((link) => {
                 const isActive =
                   link.href === "/"
                     ? pathname === "/"
@@ -102,7 +105,6 @@ export function Navbar() {
           </NavigationMenu>
         </div>
 
-        {/* Right side */}
         <div className="flex items-center gap-3">
           <div className="max-[960px]:hidden">
             <SearchBar variant="nav" placeholder="Search..." />
@@ -117,16 +119,13 @@ export function Navbar() {
           )}
 
           {user ? (
-            /* Logged in — avatar dropdown */
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   className="focus-ring rounded-full"
                   aria-label="Account menu"
                 >
-                  <BcAvatar
-                    initials={user.username.slice(0, 2).toUpperCase()}
-                  />
+                  <BcAvatar initials={user.username.slice(0, 2).toUpperCase()} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" sideOffset={8}>
@@ -142,6 +141,12 @@ export function Navbar() {
                   )}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer">
+                    <Bookmark className="w-3.5 h-3.5 mr-2" />
+                    Saved & Recommendations
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={logout}
                   className="text-destructive focus:text-destructive cursor-pointer"
@@ -152,7 +157,6 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            /* Not logged in — sign in link */
             <Link
               href="/auth"
               className={cn(

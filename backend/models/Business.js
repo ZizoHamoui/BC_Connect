@@ -4,6 +4,8 @@ const businessSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     industry: { type: String, required: true, trim: true },
+    // Legacy-compatible category field used by existing datasets.
+    industryCategory: { type: String, trim: true },
     region: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
     address: { type: String, trim: true },

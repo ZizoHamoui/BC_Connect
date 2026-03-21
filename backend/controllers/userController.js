@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Business = require("../models/Business");
 const User = require("../models/User");
+const { buildRecommendations } = require("../services/recommendationEngine");
 
 function normalizeUsername(username) {
   return typeof username === "string" ? username.trim() : "";
@@ -12,6 +13,25 @@ function normalizeEmail(email) {
 
 function isValidObjectId(value) {
   return mongoose.Types.ObjectId.isValid(value);
+}
+
+function canManageSavedBusinesses(role) {
+  return role === "member" || role === "admin";
+}
+
+function enforceSavedBusinessAccess(req, res) {
+  if (!canManageSavedBusinesses(req.user?.role)) {
+    res.status(403).json({
+      message: "Only members can save businesses.",
+    });
+    return false;
+  }
+
+  return true;
+}
+
+function toIdArray(values = []) {
+  return values.map((id) => String(id));
 }
 
 function handleUserWriteError(error, res, fallbackMessage) {
@@ -32,7 +52,11 @@ function handleUserWriteError(error, res, fallbackMessage) {
   return res.status(500).json({ message: fallbackMessage });
 }
 
-async function getFavorites(req, res) {
+async function getSavedBusinesses(req, res) {
+  if (!enforceSavedBusinessAccess(req, res)) {
+    return undefined;
+  }
+
   try {
     const user = await User.findById(req.user.id).populate("favorites");
 
@@ -42,12 +66,139 @@ async function getFavorites(req, res) {
 
     return res.json(user.favorites || []);
   } catch (error) {
-    console.error("Get favorites failed:", error);
-    return res.status(500).json({ message: "Unable to fetch favorites." });
+    console.error("Get saved businesses failed:", error);
+    return res.status(500).json({ message: "Unable to fetch saved businesses." });
+  }
+}
+
+async function saveBusiness(req, res) {
+  if (!enforceSavedBusinessAccess(req, res)) {
+    return undefined;
+  }
+
+  try {
+    const { businessId } = req.body;
+
+    if (!businessId) {
+      return res.status(400).json({ message: "businessId is required." });
+    }
+
+    if (!isValidObjectId(businessId)) {
+      return res.status(400).json({ message: "Invalid business id." });
+    }
+
+    const business = await Business.findById(businessId).select("_id");
+
+    if (!business) {
+      return res.status(404).json({ message: "Business not found." });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const exists = user.favorites.some((id) => String(id) === String(businessId));
+
+    if (!exists) {
+      user.favorites.push(businessId);
+      await user.save();
+    }
+
+    return res.status(exists ? 200 : 201).json({
+      savedBusinessIds: toIdArray(user.favorites),
+      added: !exists,
+    });
+  } catch (error) {
+    console.error("Save business failed:", error);
+    return res.status(500).json({ message: "Unable to save business." });
+  }
+}
+
+async function removeSavedBusiness(req, res) {
+  if (!enforceSavedBusinessAccess(req, res)) {
+    return undefined;
+  }
+
+  try {
+    const businessId = req.params?.businessId;
+
+    if (!businessId) {
+      return res.status(400).json({ message: "businessId is required." });
+    }
+
+    if (!isValidObjectId(businessId)) {
+      return res.status(400).json({ message: "Invalid business id." });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const before = user.favorites.length;
+    user.favorites = user.favorites.filter(
+      (id) => String(id) !== String(businessId),
+    );
+    const removed = user.favorites.length < before;
+
+    if (removed) {
+      await user.save();
+    }
+
+    return res.json({
+      savedBusinessIds: toIdArray(user.favorites),
+      removed,
+    });
+  } catch (error) {
+    console.error("Remove saved business failed:", error);
+    return res.status(500).json({ message: "Unable to remove saved business." });
+  }
+}
+
+async function getRecommendations(req, res) {
+  if (!enforceSavedBusinessAccess(req, res)) {
+    return undefined;
+  }
+
+  try {
+    const user = await User.findById(req.user.id).populate("favorites");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const savedBusinesses = user.favorites || [];
+    const excludedIds = savedBusinesses.map((business) => business._id);
+
+    const candidates = await Business.find({
+      _id: { $nin: excludedIds },
+      verificationStatus: "verified",
+    }).lean();
+
+    const recommendations = buildRecommendations({
+      savedBusinesses,
+      candidates,
+      limit: 3,
+    });
+
+    return res.json({
+      recommendations,
+      basedOnSaved: savedBusinesses.length,
+    });
+  } catch (error) {
+    console.error("Get recommendations failed:", error);
+    return res.status(500).json({ message: "Unable to fetch recommendations." });
   }
 }
 
 async function toggleFavorite(req, res) {
+  if (!enforceSavedBusinessAccess(req, res)) {
+    return undefined;
+  }
+
   try {
     const { businessId } = req.body;
 
@@ -122,7 +273,11 @@ async function updateProfile(req, res) {
 }
 
 module.exports = {
-  getFavorites,
+  getSavedBusinesses,
+  saveBusiness,
+  removeSavedBusiness,
+  getRecommendations,
+  getFavorites: getSavedBusinesses,
   toggleFavorite,
   updateProfile,
 };

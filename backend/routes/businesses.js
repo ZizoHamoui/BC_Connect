@@ -3,6 +3,7 @@ const verifyToken = require("../middleware/auth");
 const optionalAuth = require("../middleware/optionalAuth");
 const {
   getAll,
+  getFilterOptions,
   getById,
   create,
   remove,
@@ -11,7 +12,8 @@ const {
 const router = express.Router();
 
 router.get("/", optionalAuth, getAll);
-router.get("/:id", getById);
+router.get("/filters", optionalAuth, getFilterOptions);
+router.get("/:id", optionalAuth, getById);
 
 // Assignment-required protected routes.
 router.post("/", verifyToken, create);

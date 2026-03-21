@@ -3,6 +3,8 @@ import type { Business } from "@/components/business-card";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const AUTH_TOKEN_KEY = "bc_connect_token";
+const AUTH_USER_KEY = "bc_connect_user";
+const AUTH_EXPIRED_EVENT = "bc_connect_auth_expired";
 
 export interface AuthPayload {
   token: string;
@@ -43,8 +45,34 @@ export interface CreateBusinessPayload extends Omit<ApiBusiness, "_id"> {
   industryCategory?: string;
 }
 
+export interface BusinessPagination {
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  nextPage: number | null;
+}
+
+export interface PaginatedBusinessesResponse {
+  items: ApiBusiness[];
+  pagination: BusinessPagination;
+}
+
+interface GetBusinessesParams {
+  industry?: string;
+  region?: string;
+  city?: string;
+  search?: string;
+  limit?: number | "all";
+  page?: number;
+  withMeta?: boolean;
+}
+
 interface RequestOptions extends RequestInit {
   auth?: boolean;
+}
+
+function normalizeText(value?: string) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function getToken() {
@@ -85,9 +113,26 @@ async function request<T>(
     const errorBody = await response
       .json()
       .catch(() => ({ message: "Request failed." }));
-    throw new Error(
-      errorBody.message || `Request failed with status ${response.status}`,
-    );
+    const message =
+      errorBody.message || `Request failed with status ${response.status}`;
+
+    if (options.auth) {
+      const normalized = String(message).toLowerCase();
+      const isTokenError =
+        response.status === 401 ||
+        normalized.includes("invalid or expired token") ||
+        normalized.includes("missing authorization");
+
+      if (isTokenError) {
+        clearToken();
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(AUTH_USER_KEY);
+          window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+        }
+      }
+    }
+
+    throw new Error(message);
   }
 
   if (response.status === 204) {
@@ -122,12 +167,18 @@ export async function login(identifier: string, password: string) {
 }
 
 export function toBusinessCard(business: ApiBusiness): Business {
+  const normalizedIndustry = normalizeText(
+    business.industryCategory ?? business.industry,
+  );
+  const normalizedRegion = normalizeText(business.region ?? business.city);
+  const normalizedCity = normalizeText(business.city);
+
   return {
     id: business._id,
     name: business.name,
-    industry: business.industryCategory ?? business.industry ?? "Other",
-    region: business.region ?? business.city ?? "British Columbia",
-    city: business.city ?? "BC",
+    industry: normalizedIndustry || "Other",
+    region: normalizedRegion || "British Columbia",
+    city: normalizedCity || "BC",
     description:
       business.description ??
       (business.address
@@ -140,14 +191,11 @@ export function toBusinessCard(business: ApiBusiness): Business {
   };
 }
 
-export async function getBusinesses(params?: {
-  industry?: string;
-  region?: string;
-  city?: string;
-  search?: string;
-  limit?: number | "all";
-  page?: number;
-}) {
+export function getBusinesses(
+  params: GetBusinessesParams & { withMeta: true },
+): Promise<PaginatedBusinessesResponse>;
+export function getBusinesses(params?: GetBusinessesParams): Promise<ApiBusiness[]>;
+export function getBusinesses(params: GetBusinessesParams = {}) {
   const searchParams = new URLSearchParams();
 
   if (params?.industry) searchParams.set("industry", params.industry);
@@ -156,11 +204,24 @@ export async function getBusinesses(params?: {
   if (params?.search) searchParams.set("search", params.search);
   if (params?.limit) searchParams.set("limit", String(params.limit));
   if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.withMeta) searchParams.set("withMeta", "true");
 
   const query = searchParams.toString();
-  return request<ApiBusiness[]>(`/businesses${query ? `?${query}` : ""}`, {
-    auth: true,
-  });
+  return request<ApiBusiness[] | PaginatedBusinessesResponse>(
+    `/businesses${query ? `?${query}` : ""}`,
+    { auth: true },
+  );
+}
+
+export function getBusinessFilterOptions(search?: string) {
+  const searchParams = new URLSearchParams();
+  if (search) searchParams.set("search", search);
+  const query = searchParams.toString();
+
+  return request<{ industries: string[]; regions: string[] }>(
+    `/businesses/filters${query ? `?${query}` : ""}`,
+    { auth: true },
+  );
 }
 
 export function createBusiness(data: CreateBusinessPayload) {
@@ -184,11 +245,49 @@ export function deleteBusiness(id: string) {
 }
 
 export function getBusinessById(id: string) {
-  return request<ApiBusiness>(`/businesses/${id}`);
+  return request<ApiBusiness>(`/businesses/${id}`, { auth: true });
+}
+
+export function getSavedBusinesses() {
+  return request<ApiBusiness[]>("/users/me/saved", { auth: true });
+}
+
+export function saveBusiness(businessId: string) {
+  return request<{ savedBusinessIds: string[]; added: boolean }>(
+    "/users/me/saved",
+    {
+      method: "POST",
+      body: JSON.stringify({ businessId }),
+      auth: true,
+    },
+  );
+}
+
+export function removeSavedBusiness(businessId: string) {
+  return request<{ savedBusinessIds: string[]; removed: boolean }>(
+    `/users/me/saved/${businessId}`,
+    {
+      method: "DELETE",
+      auth: true,
+    },
+  );
+}
+
+export interface BusinessRecommendation {
+  business: ApiBusiness;
+  score: number;
+  reasons: string[];
+}
+
+export function getRecommendations() {
+  return request<{ recommendations: BusinessRecommendation[]; basedOnSaved: number }>(
+    "/users/me/recommendations",
+    { auth: true },
+  );
 }
 
 export function getFavorites() {
-  return request<ApiBusiness[]>("/users/me/favorites", { auth: true });
+  return getSavedBusinesses();
 }
 
 export function toggleFavorite(businessId: string) {
@@ -215,8 +314,7 @@ export function updateProfile(updates: { username?: string; email?: string }) {
   });
 }
 
-// ── Admin API ──────────────────────────────────────────────────────
-
+// Admin API
 export interface AdminStats {
   businessesThisMonth: number;
   totalBusinesses: number;
