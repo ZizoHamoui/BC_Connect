@@ -53,7 +53,7 @@ export function Navbar() {
           <Link
             href="/"
             aria-label="BC Connect Home"
-            className="lattice-hover focus-ring rounded-sm"
+            className="group lattice-hover focus-ring rounded-sm"
           >
             <Wordmark size="nav" />
           </Link>
