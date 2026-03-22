@@ -30,11 +30,6 @@ import { useAuth } from "@/lib/auth-context";
 
 const publicNavLinks = [
   { label: "Home", href: "/", desc: "Home page" },
-  {
-    label: "Style Guide",
-    href: "/styleguide",
-    desc: "Design system reference",
-  },
   { label: "Jobs", href: "/#jobs", desc: "Open roles across BC" },
 ];
 
@@ -66,11 +61,11 @@ export function Navbar() {
           <NavigationMenu viewport={false} className="max-[960px]:hidden">
             <NavigationMenuList className="gap-0.5">
               {[...publicNavLinks, ...(user ? authNavLinks : []), ...(user?.role === "admin" ? adminNavLinks : [])].map((link) => {
-                const isActive =
-                  link.href === "/"
+                const hrefPath = link.href.replace(/#.*/, "");
+              const isActive =
+                  hrefPath === "/"
                     ? pathname === "/"
-                    : pathname.startsWith(link.href.replace(/#.*/, "")) &&
-                      link.href !== "/";
+                    : pathname.startsWith(hrefPath);
                 return (
                   <NavigationMenuItem key={link.href}>
                     <Tooltip>
