@@ -1,7 +1,11 @@
 import type { Business } from "@/components/business-card";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const ENV_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.trim();
+const DEFAULT_LOCAL_API_BASE_URLS = [
+  "http://localhost:5000/api",
+  "http://localhost:5001/api",
+];
+let cachedApiBaseUrl: string | null = ENV_API_BASE_URL || null;
 const AUTH_TOKEN_KEY = "bc_connect_token";
 const AUTH_USER_KEY = "bc_connect_user";
 const AUTH_EXPIRED_EVENT = "bc_connect_auth_expired";
@@ -71,6 +75,20 @@ interface RequestOptions extends RequestInit {
   auth?: boolean;
 }
 
+function getApiBaseCandidates() {
+  if (ENV_API_BASE_URL) return [ENV_API_BASE_URL];
+  if (!cachedApiBaseUrl) return DEFAULT_LOCAL_API_BASE_URLS;
+
+  return [
+    cachedApiBaseUrl,
+    ...DEFAULT_LOCAL_API_BASE_URLS.filter((url) => url !== cachedApiBaseUrl),
+  ];
+}
+
+function buildApiUrl(baseUrl: string, path: string) {
+  return `${baseUrl}${path}`;
+}
+
 function normalizeText(value?: string) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -104,10 +122,31 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  const apiBaseCandidates = getApiBaseCandidates();
+  let networkError: unknown = null;
+  let response: Response | null = null;
+
+  for (const apiBaseUrl of apiBaseCandidates) {
+    try {
+      response = await fetch(buildApiUrl(apiBaseUrl, path), {
+        ...options,
+        headers,
+      });
+      cachedApiBaseUrl = apiBaseUrl;
+      break;
+    } catch (error) {
+      networkError = error;
+    }
+  }
+
+  if (!response) {
+    if (networkError instanceof Error) {
+      throw new Error(
+        `Unable to reach API (${apiBaseCandidates.join(" or ")}): ${networkError.message}`,
+      );
+    }
+    throw new Error(`Unable to reach API (${apiBaseCandidates.join(" or ")}).`);
+  }
 
   if (!response.ok) {
     const errorBody = await response
