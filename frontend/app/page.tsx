@@ -5,6 +5,7 @@ import { Hero } from "@/components/hero"
 import { Principles } from "@/components/principles"
 import { StatsSection } from "@/components/stats-section"
 import { DirectoryPreview } from "@/components/directory-preview"
+import { RecommendedSection } from "@/components/recommended-section"
 import { JobsSection } from "@/components/jobs-section"
 import { CtaSection } from "@/components/cta-section"
 import { Footer } from "@/components/footer"
@@ -20,6 +21,7 @@ export default function HomePage() {
       <Principles />
       <StatsSection />
       {user && <DirectoryPreview />}
+      {user && <RecommendedSection />}
       <JobsSection />
       <CtaSection />
       <Footer />

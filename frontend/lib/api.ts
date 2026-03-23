@@ -227,6 +227,8 @@ export function toBusinessCard(business: ApiBusiness): Business {
     employees: business.employees,
     verified: business.verificationStatus === "verified",
     verificationStatus: business.verificationStatus,
+    lat: business.coordinates?.lat,
+    lng: business.coordinates?.lng,
   };
 }
 

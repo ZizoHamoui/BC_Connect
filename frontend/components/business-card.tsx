@@ -4,16 +4,18 @@ import { ArrowUpRight, Bookmark, BookmarkCheck, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Business {
-  id: string;
-  name: string;
-  industry: string;
-  region: string;
-  city: string;
-  description: string;
-  tags?: string[];
-  employees?: number;
-  verified?: boolean;
-  verificationStatus?: "pending" | "verified" | "rejected";
+  id: string
+  name: string
+  industry: string
+  region: string
+  city: string
+  description: string
+  tags?: string[]
+  employees?: number
+  verified?: boolean
+  verificationStatus?: "pending" | "verified" | "rejected"
+  lat?: number
+  lng?: number
 }
 
 const industryGradients: Record<string, { from: string; to: string; icon: string }> = {

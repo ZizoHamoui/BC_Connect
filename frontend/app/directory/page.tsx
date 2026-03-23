@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { Suspense, useEffect, useState, useMemo, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { BusinessCard } from "@/components/business-card";
@@ -21,6 +21,19 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { sampleBusinesses } from "@/lib/sample-data";
+import { AddBusinessModal } from "@/components/add-business-modal";
+import { getBusinesses, toBusinessCard } from "@/lib/api";
+import { sampleBusinesses, industries, regions } from "@/lib/sample-data";
+import type { Business } from "@/components/business-card";
+import { LayoutGrid, Map as MapIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const DirectoryMap = dynamic(
+  () => import("@/components/directory-map").then((m) => m.DirectoryMap),
+  { ssr: false, loading: () => <div className="w-full h-full bg-cloud animate-pulse rounded-[var(--r-xl)]" /> }
+);
+
+const PAGE_SIZE = 50;
 
 const PAGE_SIZE = 50;
 const ALL_INDUSTRIES = "All";
@@ -188,6 +201,7 @@ export default function DirectoryPage() {
     nextPage,
   ]);
 
+  // Reset to page 1 when filters/search change
   useEffect(() => {
     let isMounted = true;
 
@@ -270,6 +284,12 @@ export default function DirectoryPage() {
     },
     [router, savedBusinessIds, user],
   );
+
+  const handleViewMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchBusinesses(nextPage, true);
+  };
 
   const displayedBusinesses = useMemo(() => {
     if (!isUsingFallback) return businesses;
@@ -373,8 +393,34 @@ export default function DirectoryPage() {
             href="/list"
             className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-5 py-3 rounded-full bg-foreground text-background hover:bg-ink-700 shrink-0"
           >
-            + List Your Startup
-          </Link>
+            {user?.role === "admin" ? "+ Add a Listing" : "+ List Your Startup"}
+          </button>
+
+          {/* View mode toggle — only for logged-in users */}
+          {user && (
+            <div className="flex items-center rounded-full border border-border bg-card p-0.5">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={cn(
+                  "btn-press focus-ring inline-flex items-center justify-center p-2 rounded-full transition-colors cursor-pointer",
+                  viewMode === "grid" ? "bg-foreground text-background" : "text-ink-300 hover:text-foreground"
+                )}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className={cn(
+                  "btn-press focus-ring inline-flex items-center justify-center p-2 rounded-full transition-colors cursor-pointer",
+                  viewMode === "map" ? "bg-foreground text-background" : "text-ink-300 hover:text-foreground"
+                )}
+                aria-label="Map view"
+              >
+                <MapIcon className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         <FilterPills
@@ -412,26 +458,99 @@ export default function DirectoryPage() {
             title="No startups found"
             description="Try adjusting your search or filters."
           />
-        ) : (
-          <div className="grid grid-cols-3 max-[960px]:grid-cols-2 max-[640px]:grid-cols-1 gap-6">
-            {isLoading
-              ? Array.from({ length: 9 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-56 rounded-[var(--r-xl)] bg-cloud animate-pulse"
-                  />
-                ))
-              : displayedBusinesses.map((business) => (
-                  <BusinessCard
-                    key={business.id}
-                    business={business}
-                    showSaveButton
-                    isSaved={savedBusinessIds.has(business.id)}
-                    isSaveLoading={savingBusinessIds.has(business.id)}
-                    onToggleSave={handleSaveToggle}
-                  />
-                ))}
+        ) : viewMode === "map" && user ? (
+          /* ─── Hybrid Map/List View ─── */
+          <div className="flex gap-6 max-[960px]:flex-col" style={{ height: "70vh" }}>
+            {/* Card list — left 1/3 */}
+            <div className="w-1/3 max-[960px]:w-full max-[960px]:h-[40vh] overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+              {isLoading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-32 rounded-[var(--r-xl)] bg-cloud animate-pulse" />
+                  ))
+                : displayedBusinesses.map((biz) => (
+                    <div
+                      key={biz.id}
+                      ref={(el) => { if (el) cardRefs.current.set(biz.id, el); }}
+                      className={cn(
+                        "transition-all duration-200 rounded-[var(--r-xl)]",
+                        selectedBusinessId === biz.id && "ring-2 ring-[#3568B2] ring-offset-2"
+                      )}
+                    >
+                      <BusinessCard
+                        business={biz}
+                        onClick={() => router.push(`/directory/${biz.id}`)}
+                      />
+                    </div>
+                  ))}
+
+              {/* View More in list */}
+              {!isLoading && hasMore && !isUsingFallback && displayedBusinesses.length > 0 && (
+                <div className="flex justify-center py-4">
+                  <button
+                    onClick={handleViewMore}
+                    disabled={loadingMore}
+                    className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-6 py-2 rounded-full border border-border bg-card text-foreground hover:bg-cloud transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {loadingMore ? "Loading…" : "View More"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Map — right 2/3 */}
+            <div className="w-2/3 max-[960px]:w-full max-[960px]:h-[50vh] sticky top-20">
+              <DirectoryMap
+                businesses={displayedBusinesses}
+                selectedId={selectedBusinessId}
+                onPinClick={(id) => {
+                  setSelectedBusinessId(id);
+                  const el = cardRefs.current.get(id);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                }}
+              />
+            </div>
           </div>
+        ) : (
+          /* ─── Standard Grid View ─── */
+          <>
+            <div className="grid grid-cols-3 max-[960px]:grid-cols-2 max-[640px]:grid-cols-1 gap-6">
+              {isLoading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-56 rounded-[var(--r-xl)] bg-cloud animate-pulse"
+                    />
+                  ))
+                : displayedBusinesses.map((biz) => (
+                    <BusinessCard key={biz.id} business={biz} onClick={() => router.push(`/directory/${biz.id}`)} />
+                  ))}
+            </div>
+
+            {/* View More */}
+            {!isLoading && hasMore && !isUsingFallback && displayedBusinesses.length > 0 && (
+              <div className="flex justify-center mt-10">
+                <button
+                  onClick={handleViewMore}
+                  disabled={loadingMore}
+                  className="btn-press focus-ring inline-flex items-center justify-center font-sans text-[13px] font-medium px-8 py-3 rounded-full border border-border bg-card text-foreground hover:bg-cloud transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Loading…
+                    </>
+                  ) : (
+                    "View More"
+                  )}
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {!isLoading && !isUsingFallback && hasMore && (
