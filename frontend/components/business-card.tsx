@@ -14,6 +14,8 @@ export interface Business {
   employees?: number
   verified?: boolean
   verificationStatus?: "pending" | "verified" | "rejected"
+  lat?: number
+  lng?: number
 }
 
 const industryGradients: Record<string, { from: string; to: string; icon: string }> = {
